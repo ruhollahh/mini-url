@@ -1,0 +1,61 @@
+services:
+  miniurl-web-dev:
+    build:
+      context: .
+      target: develop
+    image: ${DEV_MINIURL_IMAGE?error}
+    container_name: miniurl-web-dev
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+    restart: no
+    networks:
+      - miniurl-dev
+    environment:
+      MINIURL_URLSVC__SHORT_DOMAIN_URL: ${COMPOSE_SHORT_DOMAIN_URL:-http://localhost:8090}
+
+      MINIURL_SERVER__PORT: ${COMPOSE_SERVER_PORT:-8090}
+
+      MINIURL_MYSQL__HOST: miniurl-mysql-dev
+      MINIURL_MYSQL__PORT: 3306
+      MINIURL_MYSQL__DATABASE: ${COMPOSE_MYSQL_DATABASE:-miniurl_db}
+      MINIURL_MYSQL__USER: ${COMPOSE_MYSQL_USER:-miniurl}
+      MINIURL_MYSQL__PASSWORD: ${COMPOSE_MYSQL_USER_PASSWORD:-miniurl}
+    ports:
+      - "${COMPOSE_SERVER_PORT:-8090}:${COMPOSE_SERVER_PORT:-8090}"
+    depends_on:
+      miniurl-mysql-dev:
+        condition: service_healthy
+
+  miniurl-mysql-dev:
+    image: mysql:9.0.1
+    container_name: miniurl-mysql-dev
+    restart: no
+    networks:
+      - miniurl-dev
+    ports:
+      - "3306:3306"
+    volumes:
+      - type: volume
+        source: miniurl-mysql-data-dev
+        target: /var/lib/mysql
+    environment:
+      MYSQL_USER: ${COMPOSE_MYSQL_USER:-miniurl}
+      MYSQL_PASSWORD: ${COMPOSE_MYSQL_USER_PASSWORD:-miniurl}
+      MYSQL_DATABASE: ${COMPOSE_MYSQL_DATABASE:-miniurl_db}
+      MYSQL_ROOT_PASSWORD: ${COMPOSE_MYSQL_ROOT_PASSWORD:-miniurl}
+      ALLOW_EMPTY_PASSWORD: no
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping --user=${COMPOSE_MYSQL_USER:-miniurl} --password=${COMPOSE_MYSQL_USER_PASSWORD:-miniurl}" ]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+volumes:
+  miniurl-mysql-data-dev:
+
+networks:
+  miniurl-dev:
+    driver: "bridge"
